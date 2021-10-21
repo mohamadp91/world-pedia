@@ -2,12 +2,11 @@ package com.xper.worldpedia.controller;
 
 import com.xper.worldpedia.models.WorldEntity;
 import com.xper.worldpedia.repository.WorldRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -17,13 +16,32 @@ public class controller {
     @Autowired
     private WorldRepository worldRepository;
 
+    @CrossOrigin
     @GetMapping("/{country}")
-    public WorldEntity getCountry(@PathVariable String country) {
+    @CircuitBreaker(name = "main", fallbackMethod = "getCountryFallback")
+    public WorldEntity getCountry(@PathVariable String country) throws Throwable {
+        if(worldRepository.count() == 0 || !worldRepository.existsByCountry(country))
+            throw new Throwable();
         return worldRepository.findByCountry(country);
     }
 
+    public WorldEntity getCountryFallback(String country, Throwable th) {
+        return new WorldEntity();
+    }
+
+    @CrossOrigin
     @GetMapping("/all")
-    public List<WorldEntity> getAllCountries() {
-        return worldRepository.findAll();
+    @CircuitBreaker(name = "main", fallbackMethod = "getAllCountryFallback")
+    public List<WorldEntity> getAllCountries() throws Throwable {
+        if(worldRepository.count() == 0)
+            throw new Throwable();
+       return worldRepository.findAll();
+    }
+
+    public List<WorldEntity> getAllCountryFallback(Throwable th) {
+        List<WorldEntity> worldEntityList = new ArrayList<>();
+        WorldEntity w = new WorldEntity();
+        worldEntityList.add(w);
+        return worldEntityList;
     }
 }
